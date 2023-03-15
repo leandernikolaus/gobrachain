@@ -2,14 +2,10 @@ package blockchain
 
 type Hash [32]byte
 
-type View uint64
-
-var nhash = Hash([32]byte{})
-
 type Block struct {
 	hash   Hash
 	parent Hash
-	view   View
+	view   uint
 }
 
 type Blockchain struct {
@@ -22,33 +18,35 @@ pred (chain *Blockchain) invar(){
 	acc(chain.blocks) &&
 	forall k Hash :: (k in domain(chain.blocks) ==> acc(chain.blocks[k])) &&
 	forall k Hash :: (k in domain(chain.blocks) ==> chain.blocks[k].hash == k) &&
-	forall k Hash :: (k in domain(chain.blocks) && chain.blocks[k].parent != nhash ==> chain.blocks[k].parent in domain(chain.blocks))
+	forall b *Block :: b in range(chain.blocks) ==> b.parent in domain(chain.blocks)
+	// forall k Hash :: (k in domain(chain.blocks) ==> chain.blocks[k].parent in domain(chain.blocks))
 }
-
-// pred (chain *Blockchain, b *Block, p *Block) isorder(){
-// 	(b in range(chain.blocks) && p in range(chain.blocks) && b.parent == p.hash) ==> p.view < b.view
-// }
 @ */
 
-/*
-func (chain *Blockchain) Has(h Hash) (b bool) {
-	_, ok := chain.blocks[h]
-	return ok
-}
-
-func (chain *Blockchain) Get(h Hash) (b *Block, ok bool) {
-	b, ok = chain.blocks[h]
-	if !ok {
-		return nil, false
-	}
-	return b, true
-}*/
-
-//@ requires acc(b)
-//@ requires chain.invar()
-//@ ensures chain.invar()
+//@ requires acc(b,1/2)
+//@ requires acc(chain,1/2)
+//@ requires acc(chain.blocks,1/2)
+//@ requires chain.invar(1/2)
+//@ ensures chain.invar(1/2)
+//@ ensures acc(chain,1/2)
+//@ ensures acc(chain.blocks,1/2)
 func (chain *Blockchain) Add(b *Block) {
-	//@ unfold chain.invar()
-	chain.blocks[b.hash] = b
-	//@ fold chain.invar()
+	//@ unfold chain.invar(1/2)
+	if _, ok := chain.blocks[b.hash]; ok {
+		//@ assert forall k Hash :: k in domain(chain.blocks) ==> chain.blocks[k].hash == k
+		//@ assert forall k Hash :: k in domain(chain.blocks) ==> chain.blocks[k].parent in domain(chain.blocks)
+		//@ assert forall b *Block :: b in range(chain.blocks) ==> b.parent in domain(chain.blocks)
+		//@ fold chain.invar(1/2)
+		return
+	}
+	//@ assert !(b.hash in domain(chain.blocks))
+
+	if p, ok := chain.blocks[b.parent]; ok && p.view < b.view {
+		//@ assert b.parent in domain(chain.blocks)
+		chain.blocks[b.hash] = b
+	}
+	//@ assert forall k Hash :: k in domain(chain.blocks) ==> chain.blocks[k].hash == k
+	//@ assert forall k Hash :: k in domain(chain.blocks) ==> chain.blocks[k].parent in domain(chain.blocks)
+	//@ assert forall b *Block :: b in range(chain.blocks) ==> b.parent in domain(chain.blocks)
+	//@ fold chain.invar(1/2)
 }
