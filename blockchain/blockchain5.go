@@ -1,6 +1,6 @@
 package blockchain
 
-type Hash int //[32]byte
+type Hash byte //[32]byte
 
 type Block struct {
 	hash   Hash
